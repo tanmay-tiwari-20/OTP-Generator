@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure OTP Generator</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .glassmorphism {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+        
+        .dark .glassmorphism {
+            background: rgba(17, 25, 40, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .animate-pulse-slow {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        .otp-digit {
+            transition: all 0.3s ease;
+        }
+        
+        .timer-ring {
+            transition: stroke-dashoffset 1s linear;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #4C51BF;
+            cursor: pointer;
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #4C51BF;
+            cursor: pointer;
+        }
+        
+        .dark .slider::-webkit-slider-thumb {
+            background: #8B5CF6;
+        }
+        
+        .dark .slider::-moz-range-thumb {
+            background: #8B5CF6;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 to-purple-200 transition-colors duration-500 dark:from-gray-900 dark:to-indigo-900">
+    <div class="container max-w-md mx-auto p-4">
+        <div class="glassmorphism rounded-2xl p-6 md:p-8 transition-all duration-300">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-bold text-indigo-800 dark:text-indigo-300">Secure OTP Generator</h1>
+                <button id="darkModeToggle" class="p-2 rounded-lg text-white hover:bg-gray-200 dark:text-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" id="darkIcon">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" id="lightIcon">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="flex justify-center mb-6">
+                <div class="relative">
+                    <svg class="transform -rotate-90 w-24 h-24" viewBox="0 0 100 100">
+                        <circle class="text-white dark:text-white " stroke-width="10" stroke="currentColor" fill="transparent" r="40" cx="50" cy="50" />
+                        <circle id="timerRing" class="timer-ring text-indigo-500 dark:text-purple-500" stroke-width="10" stroke="currentColor" fill="transparent" r="40" cx="50" cy="50" stroke-dasharray="251.2" stroke-dashoffset="0" />
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div id="timer" class="text-xl font-bold text-indigo-800 dark:text-indigo-300">60s</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="otpDisplay" class="flex justify-center space-x-2 mb-6">
+                <!-- OTP digits will be inserted here by JavaScript -->
+            </div>
+            
+            <div class="flex justify-center mb-6">
+                <button id="copyBtn" class="relative px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 text-white rounded-lg transition-colors transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
+                    <span>Copy OTP</span>
+                    <span id="copiedMsg" class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded hidden">
+                        Copied!
+                    </span>
+                </button>
+                <button id="regenerateBtn" class="ml-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-600 text-white rounded-lg transition-colors transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50">
+                    Regenerate
+                </button>
+            </div>
+            
+            <div class="mb-6">
+                <label for="otpVerify" class="block text-sm font-medium text-white dark:text-gray-100 mb-2">Verify OTP</label>
+                <div class="flex items-center">
+                    <input type="text" id="otpVerify" class="flex-1 p-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Enter OTP to verify">
+                    <div id="verificationResult" class="ml-2 text-xl"></div>
+                </div>
+            </div>
+            
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-white dark:text-gray-100 mb-2">OTP Length: <span id="lengthValue">6</span></label>
+                    <input type="range" id="lengthSlider" min="4" max="12" value="6" class="slider w-full h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-white dark:text-gray-100 mb-2">OTP Format</label>
+                    <div class="flex flex-wrap gap-2">
+                        <button id="formatNumeric" class="px-3 py-1 bg-indigo-600 text-white rounded-lg text-sm focus:outline-none">Numeric</button>
+                        <button id="formatAlphanumeric" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg text-sm focus:outline-none">Alphanumeric</button>
+                        <button id="formatComplex" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg text-sm focus:outline-none">With Symbols</button>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-white dark:text-gray-100 mb-2">Expiry Time: <span id="expiryValue">60</span>s</label>
+                    <input type="range" id="expirySlider" min="15" max="300" step="15" value="60" class="slider w-full h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" id="autoRegenerateToggle" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <label for="autoRegenerateToggle" class="ml-2 block text-sm text-white dark:text-gray-100">Auto-regenerate on expiry</label>
+                </div>
+                
+                <div id="advancedFeaturesToggle" class="text-center">
+                    <button class="text-indigo-600 dark:text-indigo-400 text-sm focus:outline-none">
+                        Show Advanced Features
+                    </button>
+                </div>
+                
+                <div id="advancedFeatures" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-white dark:text-gray-100 mb-2">Custom Character Set</label>
+                        <input type="text" id="customCharset" class="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g., ABCDEF0123456789">
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <input type="checkbox" id="qrCodeToggle" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                        <label for="qrCodeToggle" class="ml-2 block text-sm text-white dark:text-gray-100">Generate QR Code</label>
+                    </div>
+                    
+                    <div id="qrCodeContainer" class="hidden flex justify-center py-2">
+                        <!-- QR code will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // DOM Elements
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const darkIcon = document.getElementById('darkIcon');
+        const lightIcon = document.getElementById('lightIcon');
+        const otpDisplay = document.getElementById('otpDisplay');
+        const copyBtn = document.getElementById('copyBtn');
+        const copiedMsg = document.getElementById('copiedMsg');
+        const regenerateBtn = document.getElementById('regenerateBtn');
+        const otpVerify = document.getElementById('otpVerify');
+        const verificationResult = document.getElementById('verificationResult');
+        const lengthSlider = document.getElementById('lengthSlider');
+        const lengthValue = document.getElementById('lengthValue');
+        const formatNumeric = document.getElementById('formatNumeric');
+        const formatAlphanumeric = document.getElementById('formatAlphanumeric');
+        const formatComplex = document.getElementById('formatComplex');
+        const expirySlider = document.getElementById('expirySlider');
+        const expiryValue = document.getElementById('expiryValue');
+        const autoRegenerateToggle = document.getElementById('autoRegenerateToggle');
+        const advancedFeaturesToggle = document.getElementById('advancedFeaturesToggle');
+        const advancedFeatures = document.getElementById('advancedFeatures');
+        const customCharset = document.getElementById('customCharset');
+        const qrCodeToggle = document.getElementById('qrCodeToggle');
+        const qrCodeContainer = document.getElementById('qrCodeContainer');
+        const timerElement = document.getElementById('timer');
+        const timerRing = document.getElementById('timerRing');
+        
+        // State
+        let currentOTP = '';
+        let otpLength = 6;
+        let otpFormat = 'numeric';
+        let expiryTime = 60;
+        let timerInterval;
+        let timeLeft = expiryTime;
+        let autoRegenerate = false;
+        let customCharSet = '';
+        
+        // Character sets
+        const NUMERIC_CHARS = '0123456789';
+        const ALPHANUMERIC_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        const COMPLEX_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check for dark mode preference
+            if (localStorage.getItem('darkMode') === 'enabled' || 
+                (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches && 
+                 localStorage.getItem('darkMode') !== 'disabled')) {
+                enableDarkMode();
+            }
+            
+            generateOTP();
+            startTimer();
+            
+            // Set up event listeners
+            setupEventListeners();
+        });
+        
+        function setupEventListeners() {
+            darkModeToggle.addEventListener('click', toggleDarkMode);
+            copyBtn.addEventListener('click', copyOTP);
+            regenerateBtn.addEventListener('click', () => {
+                generateOTP();
+                resetTimer();
+            });
+            otpVerify.addEventListener('input', verifyOTP);
+            lengthSlider.addEventListener('input', updateOTPLength);
+            expirySlider.addEventListener('input', updateExpiryTime);
+            
+            formatNumeric.addEventListener('click', () => setOTPFormat('numeric'));
+            formatAlphanumeric.addEventListener('click', () => setOTPFormat('alphanumeric'));
+            formatComplex.addEventListener('click', () => setOTPFormat('complex'));
+            
+            autoRegenerateToggle.addEventListener('change', toggleAutoRegenerate);
+            
+            advancedFeaturesToggle.addEventListener('click', toggleAdvancedFeatures);
+            customCharset.addEventListener('input', updateCustomCharSet);
+            qrCodeToggle.addEventListener('change', toggleQRCode);
+            
+            // Add haptic feedback for mobile devices
+            if (navigator.vibrate) {
+                const hapticElements = [copyBtn, regenerateBtn, formatNumeric, formatAlphanumeric, formatComplex];
+                hapticElements.forEach(el => {
+                    el.addEventListener('click', () => navigator.vibrate(50));
+                });
+            }
+        }
+        
+        // Dark Mode Functions
+        function toggleDarkMode() {
+            if (document.documentElement.classList.contains('dark')) {
+                disableDarkMode();
+            } else {
+                enableDarkMode();
+            }
+        }
+        
+        function enableDarkMode() {
+            document.documentElement.classList.add('dark');
+            darkIcon.classList.add('hidden');
+            lightIcon.classList.remove('hidden');
+            localStorage.setItem('darkMode', 'enabled');
+        }
+        
+        function disableDarkMode() {
+            document.documentElement.classList.remove('dark');
+            lightIcon.classList.add('hidden');
+            darkIcon.classList.remove('hidden');
+            localStorage.setItem('darkMode', 'disabled');
+        }
+        
+        // OTP Generation
+        function generateOTP() {
+            // Get appropriate character set
+            let charset = getCharacterSet();
+            
+            // Use crypto.getRandomValues for secure random numbers
+            const array = new Uint32Array(otpLength);
+            crypto.getRandomValues(array);
+            
+            // Convert to OTP
+            currentOTP = Array.from(array)
+                .map(num => charset[num % charset.length])
+                .join('');
+            
+            displayOTP();
+            
+            // Clear verification
+            otpVerify.value = '';
+            verificationResult.textContent = '';
+            
+            // Generate QR code if enabled
+            if (qrCodeToggle.checked) {
+                generateQRCode();
+            }
+            
+            return currentOTP;
+        }
+        
+        function getCharacterSet() {
+            if (customCharSet && customCharSet.length > 0) {
+                return customCharSet;
+            }
+            
+            switch (otpFormat) {
+                case 'numeric':
+                    return NUMERIC_CHARS;
+                case 'alphanumeric':
+                    return ALPHANUMERIC_CHARS;
+                case 'complex':
+                    return COMPLEX_CHARS;
+                default:
+                    return NUMERIC_CHARS;
+            }
+        }
+        
+        function displayOTP() {
+            otpDisplay.innerHTML = '';
+            
+            for (let digit of currentOTP) {
+                const digitEl = document.createElement('div');
+                digitEl.className = 'otp-digit w-10 h-14 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg shadow-md text-xl font-bold text-indigo-800 dark:text-indigo-300';
+                digitEl.textContent = digit;
+                
+                // Add animation
+                digitEl.classList.add('transform', 'transition-all');
+                setTimeout(() => {
+                    digitEl.classList.add('scale-110');
+                    setTimeout(() => {
+                        digitEl.classList.remove('scale-110');
+                    }, 200);
+                }, 10);
+                
+                otpDisplay.appendChild(digitEl);
+            }
+        }
+        
+        // Timer Functions
+        function startTimer() {
+            timeLeft = expiryTime;
+            updateTimerDisplay();
+            
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    if (autoRegenerate) {
+                        generateOTP();
+                        startTimer();
+                    }
+                }
+            }, 1000);
+        }
+        
+        function resetTimer() {
+            clearInterval(timerInterval);
+            startTimer();
+        }
+        
+        function updateTimerDisplay() {
+            // Update text
+            timerElement.textContent = `${timeLeft}s`;
+            
+            // Update ring
+            const circumference = 2 * Math.PI * 40; // 2πr where r = 40
+            const offset = circumference - (timeLeft / expiryTime) * circumference;
+            timerRing.style.strokeDashoffset = offset;
+            
+            // Change color based on time left
+            if (timeLeft <= expiryTime * 0.25) {
+                timerRing.classList.remove('text-indigo-500', 'text-yellow-500');
+                timerRing.classList.add('text-red-500');
+            } else if (timeLeft <= expiryTime * 0.5) {
+                timerRing.classList.remove('text-indigo-500', 'text-red-500');
+                timerRing.classList.add('text-yellow-500');
+            } else {
+                timerRing.classList.remove('text-yellow-500', 'text-red-500');
+                timerRing.classList.add('text-indigo-500');
+            }
+        }
+        
+        // OTP Actions
+        function copyOTP() {
+            navigator.clipboard.writeText(currentOTP)
+                .then(() => {
+                    // Show copied message
+                    copiedMsg.classList.remove('hidden');
+                    setTimeout(() => {
+                        copiedMsg.classList.add('hidden');
+                    }, 2000);
+                    
+                    // Auto-clear clipboard after 10 seconds
+                    setTimeout(() => {
+                        navigator.clipboard.writeText('');
+                    }, 10000);
+                    
+                    // Haptic feedback
+                    if (navigator.vibrate) {
+                        navigator.vibrate([50, 50, 50]);
+                    }
+                })
+                .catch(err => {
+                    console.error('Could not copy text: ', err);
+                });
+        }
+        
+        function verifyOTP() {
+            const enteredOTP = otpVerify.value;
+            
+            if (enteredOTP === '') {
+                verificationResult.textContent = '';
+                return;
+            }
+            
+            if (enteredOTP === currentOTP) {
+                verificationResult.textContent = '✅';
+                if (navigator.vibrate) {
+                    navigator.vibrate(100);
+                }
+            } else {
+                // Check if it's a partial match (still typing)
+                if (currentOTP.startsWith(enteredOTP)) {
+                    verificationResult.textContent = '';
+                } else {
+                    verificationResult.textContent = '❌';
+                    if (navigator.vibrate) {
+                        navigator.vibrate([25, 25, 25]);
+                    }
+                }
+            }
+        }
+        
+        // Settings Functions
+        function updateOTPLength() {
+            otpLength = parseInt(lengthSlider.value);
+            lengthValue.textContent = otpLength;
+            generateOTP();
+            resetTimer();
+        }
+        
+        function setOTPFormat(format) {
+            otpFormat = format;
+            
+            // Update button styles
+            [formatNumeric, formatAlphanumeric, formatComplex].forEach(btn => {
+                btn.classList.remove('bg-indigo-600', 'text-white');
+                btn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-800', 'dark:text-white');
+            });
+            
+            // Highlight active button
+            let activeBtn;
+            switch (format) {
+                case 'numeric':
+                    activeBtn = formatNumeric;
+                    break;
+                case 'alphanumeric':
+                    activeBtn = formatAlphanumeric;
+                    break;
+                case 'complex':
+                    activeBtn = formatComplex;
+                    break;
+            }
+            
+            activeBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-800', 'dark:text-white');
+            activeBtn.classList.add('bg-indigo-600', 'text-white');
+            
+            generateOTP();
+            resetTimer();
+        }
+        
+        function updateExpiryTime() {
+            expiryTime = parseInt(expirySlider.value);
+            expiryValue.textContent = expiryTime;
+            resetTimer();
+        }
+        
+        function toggleAutoRegenerate() {
+            autoRegenerate = autoRegenerateToggle.checked;
+        }
+        
+        function toggleAdvancedFeatures() {
+            const isHidden = advancedFeatures.classList.contains('hidden');
+            
+            if (isHidden) {
+                advancedFeatures.classList.remove('hidden');
+                advancedFeaturesToggle.querySelector('button').textContent = 'Hide Advanced Features';
+            } else {
+                advancedFeatures.classList.add('hidden');
+                advancedFeaturesToggle.querySelector('button').textContent = 'Show Advanced Features';
+            }
+        }
+        
+        function updateCustomCharSet() {
+            customCharSet = customCharset.value;
+            if (customCharSet.length > 0) {
+                generateOTP();
+                resetTimer();
+            }
+        }
+        
+        function toggleQRCode() {
+            if (qrCodeToggle.checked) {
+                qrCodeContainer.classList.remove('hidden');
+                generateQRCode();
+            } else {
+                qrCodeContainer.classList.add('hidden');
+            }
+        }
+        
+        // Simple QR code generator (using text and blocks)
+        function generateQRCode() {
+            if (!qrCodeToggle.checked) return;
+            
+            qrCodeContainer.innerHTML = '';
+            
+            // Create a simple visual representation (not an actual QR code)
+            const qrWrapper = document.createElement('div');
+            qrWrapper.className = 'bg-white p-4 rounded-lg';
+            
+            const qrHeader = document.createElement('div');
+            qrHeader.className = 'text-center mb-2 text-xs text-gray-500';
+            qrHeader.textContent = 'OTP: ' + currentOTP;
+            
+            const qrGrid = document.createElement('div');
+            qrGrid.className = 'grid grid-cols-8 gap-1 w-48 h-48';
+            
+            // Generate a pseudo-random but consistent pattern based on the OTP
+            const seed = currentOTP.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            
+            for (let i = 0; i < 64; i++) {
+                const cell = document.createElement('div');
+                // Use a deterministic but seemingly random pattern
+                const shouldFill = ((seed * (i + 1)) % 13) > 6;
+                
+                cell.className = shouldFill ? 'bg-black' : 'bg-white border border-gray-200';
+                qrGrid.appendChild(cell);
+            }
+            
+            qrWrapper.appendChild(qrHeader);
+            qrWrapper.appendChild(qrGrid);
+            qrCodeContainer.appendChild(qrWrapper);
+        }
+    </script>
+</body>
+</html>
